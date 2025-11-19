@@ -34,7 +34,7 @@ low_fitness = fitness(arrayP)
 desviacion = 30
 
 
-while fitness(arrayP) > 0.01 and cont < 200000:
+while fitness(arrayP) > 0.001 and cont < 200000: #precision y maximo de iteraciones
     # Generamos ruido con media 0, desviación estándar variable, y tamaño fijo de 30
     ruido = np.random.normal(0, desviacion, 30)
 
