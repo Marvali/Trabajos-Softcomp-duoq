@@ -31,10 +31,12 @@ arrayP = np.random.uniform(-100, 100, 30)
 print("Array generado:", arrayP)
 cont = 0
 low_fitness = fitness(arrayP)
+desviacion = 30
 
 
-while fitness(arrayP) > 0.1 and cont < 1000000:
-    ruido = np.random.normal(0, 10, 30)
+while fitness(arrayP) > 10 and cont < 1000000:
+    # Generamos ruido con media 0, desviación estándar variable, y tamaño fijo de 30
+    ruido = np.random.normal(0, desviacion, 30)
 
 
 
@@ -48,6 +50,10 @@ while fitness(arrayP) > 0.1 and cont < 1000000:
         if(fitness(arrayP) < low_fitness):
             low_fitness = fitness(arrayP)
             print("Iteracion numero:"+str(cont)+" Nuevo mejor fitness:", low_fitness)
+            
+    #ir volviendo la desviacion mas alta conforme avanzan las iteraciones
+    if cont % 1000 == 0 and cont != 0:
+        desviacion = int(desviacion * 0.9)
             
     cont += 1
         
