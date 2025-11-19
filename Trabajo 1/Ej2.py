@@ -73,7 +73,7 @@ while mejor_individuo.num_unos < 1000 and cont < 5000:
     #TODO: añadir el ruido (MUTACIONES)
     for individuo in PoblacionH:
         for i in range(len(individuo.array)):
-            if np.random.rand() < 0.001:  # Probabilidad de mutación del 1%
+            if np.random.rand() < 0.001:  # Probabilidad de mutación del 0.1%
                 individuo.array[i] = 1 - individuo.array[i]  # Cambiar 0 a 1 o 1 a 0
         individuo.contar_unos()  # Recalcular el número de unos después de la mutación
 
