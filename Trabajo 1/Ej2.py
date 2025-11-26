@@ -70,7 +70,7 @@ while mejor_individuo.num_unos < 1000 and cont < 5000:
     asignar_probabilidades_ranking_lineal(poblacion)
     PoblacionH = seleccionar_y_cruzar(poblacion)
     
-    #TODO: añadir el ruido (MUTACIONES)
+
     for individuo in PoblacionH:
         for i in range(len(individuo.array)):
             if np.random.rand() < 0.001:  # Probabilidad de mutación del 0.1%
