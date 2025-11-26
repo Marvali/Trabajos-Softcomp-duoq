@@ -67,10 +67,10 @@ print("Mejor fitness encontrado con (1+1)-ES:", low_fitness)
 
 
 
-#Estrategia (lambda + theta)-ES
-lambda_padres = 10
-theta_hijos = 30
-desviacion_lambda = 90
+#Estrategia (mu + lambda)-ES
+mu_padres = 10
+lambda_hijos = 30
+desviacion_mu = 30
 
 poblacion = [np.random.uniform(-100, 100, 30) for _ in range(mu_padres)]
 fitness_poblacion = [fitness(ind) for ind in poblacion]
