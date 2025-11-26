@@ -67,57 +67,57 @@ print("Mejor fitness encontrado con (1+1)-ES:", low_fitness)
 
 
 
-#Estrategia (lambda + theta)-ES
-lambda_padres = 10
-theta_hijos = 30
-desviacion_lambda = 30
+#Estrategia (mu + lambda)-ES
+mu_padres = 10
+lambda_hijos = 30
+desviacion_mu = 30
 
-poblacion = [np.random.uniform(-100, 100, 30) for _ in range(lambda_padres)]
+poblacion = [np.random.uniform(-100, 100, 30) for _ in range(mu_padres)]
 fitness_poblacion = [fitness(ind) for ind in poblacion]
-mejor_lambda = min(fitness_poblacion)
-hist_lambda_theta = [mejor_lambda]
+mejor_mu = min(fitness_poblacion)
+hist_mu_lambda = [mejor_mu]
 
-cont_lambda = 0
-while mejor_lambda > 0.001 and cont_lambda < 200000:
+cont_mu = 0
+while mejor_mu > 0.001 and cont_mu < 200000:
     descendencia = []
-    for _ in range(theta_hijos):
-        padre_idx = np.random.randint(0, lambda_padres)
-        ruido = np.random.normal(0, desviacion_lambda, 30)
+    for _ in range(lambda_hijos):
+        padre_idx = np.random.randint(0, mu_padres)
+        ruido = np.random.normal(0, desviacion_mu, 30)
         hijo = poblacion[padre_idx] + ruido
         descendencia.append(hijo)
     
     poblacion_total = poblacion + descendencia
     fitness_total = [fitness(ind) for ind in poblacion_total]
     
-    #Seleccion de los mejores lambda individuos
-    orden_mejores = np.argsort(fitness_total)[:lambda_padres]
+    #Seleccion de los mejores mu individuos
+    orden_mejores = np.argsort(fitness_total)[:mu_padres]
     poblacion = [poblacion_total[i] for i in orden_mejores]
     fitness_poblacion = [fitness_total[i] for i in orden_mejores]
-    if fitness_poblacion[0] < mejor_lambda:
-        mejor_lambda = fitness_poblacion[0]
-        print("Iteracion numero:"+str(cont_lambda)+" Nuevo mejor fitness (lambda+theta)-ES:", mejor_lambda)
+    if fitness_poblacion[0] < mejor_mu:
+        mejor_mu = fitness_poblacion[0]
+        print("Iteracion numero:"+str(cont_mu)+" Nuevo mejor fitness (mu+lambda)-ES:", mejor_mu)
 
-    if cont_lambda % 1000 == 0 and cont_lambda != 0:
-        desviacion_lambda = desviacion_lambda * 0.9
+    if cont_mu % 1000 == 0 and cont_mu != 0:
+        desviacion_mu = desviacion_mu * 0.9
     
-    hist_lambda_theta.append(mejor_lambda)
-    cont_lambda += 1
+    hist_mu_lambda.append(mejor_mu)
+    cont_mu += 1
 
-print("Mejor fitness encontrado con (lambda+theta)-ES:", mejor_lambda)
+print("Mejor fitness encontrado con (mu+lambda)-ES:", mejor_mu)
 
 
 #Grafica comparativa
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
 
 ax1.plot(hist_11_es, label="(1+1)-ES")
-ax1.plot(hist_lambda_theta, label="(lambda+theta)-ES")
+ax1.plot(hist_mu_lambda, label="(mu+lambda)-ES")
 ax1.set_ylabel("Fitness (global)")
 ax1.set_title("Evolucion del fitness por generacion")
 ax1.legend()
 ax1.grid(True)
 
 ax2.plot(hist_11_es, label="(1+1)-ES")
-ax2.plot(hist_lambda_theta, label="(lambda+theta)-ES")
+ax2.plot(hist_mu_lambda, label="(mu+lambda)-ES")
 ax2.set_xlabel("Generaciones")
 ax2.set_ylabel("Fitness (zoom 0-1)")
 ax2.set_ylim(0, 1)
