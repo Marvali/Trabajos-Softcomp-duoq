@@ -1,7 +1,9 @@
-
+import os
 import numpy as np
-
-
+import copy as cp
+import matplotlib
+matplotlib.use("Agg")  # Backend sin ventana para poder guardar la grafica
+import matplotlib.pyplot as plt
 
 
 #clase individuo con su array  generado aleatoriamente (1000 numeros al azar que sean 0 o 1)
@@ -61,42 +63,71 @@ def seleccionar_y_cruzar(poblacion):
         
 #crear array de 100 individuos
 poblacion = [Individuo() for _ in range(100)]
-mejor_individuo = max(poblacion, key=lambda ind: ind.num_unos)
+mejor_individuo_global = cp.deepcopy(max(poblacion, key=lambda ind: ind.num_unos))
 cont = 0
+mejores_generacion = []
+promedios_generacion = []
 
-while mejor_individuo.num_unos < 1000 and cont < 5000: 
+while mejor_individuo_global.num_unos < 1000 and cont < 5000: 
     
     # Ordenar y asignar probabilidades
     asignar_probabilidades_ranking_lineal(poblacion)
+    
+    # se guarda al mejor individuo de la generacion actual
+    mejor_individuo_actual  = poblacion[0]
+    mejores_generacion.append(mejor_individuo_actual.num_unos)
+    promedios_generacion.append(np.mean([ind.num_unos for ind in poblacion]))
+    
+    #Seleccionar y cruzar
     PoblacionH = seleccionar_y_cruzar(poblacion)
     
-    #TODO: añadir el ruido (MUTACIONES)
+    #mutación 
     for individuo in PoblacionH:
-        for i in range(len(individuo.array)):
-            if np.random.rand() < 0.001:  # Probabilidad de mutación del 0.1%
-                individuo.array[i] = 1 - individuo.array[i]  # Cambiar 0 a 1 o 1 a 0
-        individuo.contar_unos()  # Recalcular el número de unos después de la mutación
-
-    
-    #mirar el mejor individuo de PoblacionH
+        mask = np.random.random(1000) < 0.001
+        if np.any(mask):
+            individuo.array[mask] = 1 - individuo.array[mask]  # Flip bits
+            individuo.contar_unos()
+            
+    #aplicar elitismo: mantener el mejor individuo de la generacion actual
     PoblacionH.sort(key=lambda ind: ind.num_unos, reverse=True)
+    PoblacionH[-1] = cp.deepcopy(mejor_individuo_actual)
     
-    if(PoblacionH[0].num_unos > mejor_individuo.num_unos):
-        mejor_individuo = PoblacionH[0]
-        print("Iteracion:", cont, " Nuevo mejor individuo con numero de unos:", mejor_individuo.num_unos)
+    #actualizar poblacion
+    poblacion = PoblacionH
     
+    #actualizar mejor individuo global
+    nuevo_mejor = PoblacionH[0]
     
-    poblacion  = PoblacionH
+    if nuevo_mejor.num_unos > mejor_individuo_global.num_unos:
+        mejor_individuo_global = cp.deepcopy(nuevo_mejor)
+        print("Iteracion numero:"+str(cont)+" Nuevo mejor individuo global con numero de unos:", mejor_individuo_global.num_unos)
+     
     
     cont +=1
     
+print("Mejor individuo encontrado con numero de unos:", mejor_individuo_global.num_unos, " En iteracion:", cont )
 
+# Generar grafica fitness/generaciones segun lo pedido en el enunciado
+plt.figure(figsize=(10, 5))
+plt.plot(mejores_generacion, label="Mejor de la generacion")
+plt.plot(promedios_generacion, label="Promedio de la poblacion")
+plt.xlabel("Generaciones")
+plt.ylabel("Numero de unos (fitness)")
+plt.title("Evolucion del fitness (Ejercicio 2)")
+plt.grid(True, linestyle="--", alpha=0.6)
+plt.legend()
+plt.tight_layout()
+base_dir = os.path.dirname(__file__)
+ruta_doc = os.path.join(base_dir, "doc")
+os.makedirs(ruta_doc, exist_ok=True)
+ruta_grafica = os.path.join(ruta_doc, "ej2_evolucion_fitness.png")
+plt.savefig(ruta_grafica)
+print("Grafica de evolucion guardada en:", ruta_grafica)
         
-    # ... resto del algoritmo genetico ...
-     # Romper para evitar bucle infinito mientras desarrollas
+
     
     
-    
+
 
 
 
