@@ -1,7 +1,9 @@
+import os
 import numpy as np
 import copy as cp
-
-
+import matplotlib
+matplotlib.use("Agg")  # Backend sin ventana para poder guardar la grafica
+import matplotlib.pyplot as plt
 
 
 #clase individuo con su array  generado aleatoriamente (1000 numeros al azar que sean 0 o 1)
@@ -63,6 +65,8 @@ def seleccionar_y_cruzar(poblacion):
 poblacion = [Individuo() for _ in range(100)]
 mejor_individuo_global = cp.deepcopy(max(poblacion, key=lambda ind: ind.num_unos))
 cont = 0
+mejores_generacion = []
+promedios_generacion = []
 
 while mejor_individuo_global.num_unos < 1000 and cont < 5000: 
     
@@ -71,6 +75,8 @@ while mejor_individuo_global.num_unos < 1000 and cont < 5000:
     
     # se guarda al mejor individuo de la generacion actual
     mejor_individuo_actual  = poblacion[0]
+    mejores_generacion.append(mejor_individuo_actual.num_unos)
+    promedios_generacion.append(np.mean([ind.num_unos for ind in poblacion]))
     
     #Seleccionar y cruzar
     PoblacionH = seleccionar_y_cruzar(poblacion)
@@ -100,12 +106,28 @@ while mejor_individuo_global.num_unos < 1000 and cont < 5000:
     cont +=1
     
 print("Mejor individuo encontrado con numero de unos:", mejor_individuo_global.num_unos, " En iteracion:", cont )
-    
 
+# Generar grafica fitness/generaciones segun lo pedido en el enunciado
+plt.figure(figsize=(10, 5))
+plt.plot(mejores_generacion, label="Mejor de la generacion")
+plt.plot(promedios_generacion, label="Promedio de la poblacion")
+plt.xlabel("Generaciones")
+plt.ylabel("Numero de unos (fitness)")
+plt.title("Evolucion del fitness (Ejercicio 2)")
+plt.grid(True, linestyle="--", alpha=0.6)
+plt.legend()
+plt.tight_layout()
+base_dir = os.path.dirname(__file__)
+ruta_doc = os.path.join(base_dir, "doc")
+os.makedirs(ruta_doc, exist_ok=True)
+ruta_grafica = os.path.join(ruta_doc, "ej2_evolucion_fitness.png")
+plt.savefig(ruta_grafica)
+print("Grafica de evolucion guardada en:", ruta_grafica)
         
 
     
     
+
 
 
 
