@@ -3,3 +3,7 @@
 
 # Python cache directories
 __pycache__/
+
+# Cache files
+*.pkl
+../*.pkl
