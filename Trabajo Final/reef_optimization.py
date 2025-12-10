@@ -12,6 +12,44 @@ from scipy.interpolate import PPoly
 from windSymPython.f_powerPlants_f1 import f_powerPlants_f1
 from windSymPython.f_powerPlants_f2 import f_powerPlants_f2
 from numba import njit
+import pickle
+
+class PersistentCoralCache:
+    def __init__(self, filename="coral_cache.pkl"):
+        self.filename = filename
+        self.cache = {}
+        self.modified = False
+        self._load()
+
+    def _load(self):
+        if os.path.exists(self.filename):
+            try:
+                with open(self.filename, "rb") as f:
+                    self.cache = pickle.load(f)
+                print(f"Cache cargado: {len(self.cache)} corales.")
+            except Exception as e:
+                print(f"Error cargando cache: {e}")
+                self.cache = {}
+
+    def get(self, key):
+        return self.cache.get(key)
+
+    def put(self, key, value):
+        if key not in self.cache:
+            self.cache[key] = value
+            self.modified = True
+
+    def save(self):
+        if self.modified:
+            try:
+                with open(self.filename, "wb") as f:
+                    pickle.dump(self.cache, f)
+                self.modified = False
+                print("Cache guardado en disco.")
+            except Exception as e:
+                print(f"Error guardando cache: {e}")
+
+CORAL_CACHE = PersistentCoralCache()
 
 
 @njit
@@ -63,6 +101,13 @@ def calculate_coral_power(gr: np.ndarray, vVec: np.ndarray, pwrCurveData: PPoly)
     if gr is None or gr.size == 0 or np.sum(gr) == 0:
         return 0.0
 
+    # Generar clave única para el array del coral
+    gr_key = np.ascontiguousarray(gr).tobytes()
+    cached_power = CORAL_CACHE.get(gr_key)
+    
+    if cached_power is not None:
+        return cached_power
+
     nH = vVec.shape[1]
     avVec = np.arctan2(vVec[1, :], vVec[0, :])
     angVec, ia, ic = unique_tol(avVec, 1e-15)
@@ -79,7 +124,9 @@ def calculate_coral_power(gr: np.ndarray, vVec: np.ndarray, pwrCurveData: PPoly)
         pwr_t, _, _, _, _, _ = f_powerPlants_f2(vVec[:, l], gr, pwrCurveData, rUDef_T[:, :, l], Nturb)
         pwr_sum += pwr_t
 
-    return float(pwr_sum)
+    pwr_sum = float(pwr_sum)
+    CORAL_CACHE.put(gr_key, pwr_sum)
+    return pwr_sum
 
 
 def evaluate_reef_power(
@@ -104,21 +151,10 @@ def evaluate_reef_power(
         for j in range(cols):
             layout = reef[i][j]
             if layout is not None and layout.size > 0:
-                alreadyCalculated = False
-                if existingRanking:
-                    idx = -1
-                    for k, entry in enumerate(existingRanking):
-                        if int(entry[1]) == i + 1 and int(entry[2]) == j + 1:
-                            idx = k
-                            break
-
-                    if idx != -1:
-                        entries.append(existingRanking[idx])
-                        alreadyCalculated = True
-
-                if not alreadyCalculated:
-                    pwr = calculate_coral_power(layout, windSymData, pwrCurveData)
-                    entries.append([pwr, i + 1, j + 1])
+                # El cacheado ahora se maneja internamente en calculate_coral_power con un hashmap O(1)
+                # Se ha eliminado la búsqueda lineal sobre existingRanking por ineficiente.
+                pwr = calculate_coral_power(layout, windSymData, pwrCurveData)
+                entries.append([pwr, i + 1, j + 1])
 
     if not entries:
         print("No hay corales con potencia.")
@@ -135,6 +171,7 @@ def evaluate_reef_power(
         )
     print("═════════════════════════════════════════════════════")
 
+    CORAL_CACHE.save()
     return coralRanking, reef
 
 
@@ -375,6 +412,7 @@ def cro_algorithm(
     print("Gráfico de progresión generado.")
     plt.show()
 
+    CORAL_CACHE.save()
     return reef, finalRanking
 
 
