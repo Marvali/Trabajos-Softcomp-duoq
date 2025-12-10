@@ -44,7 +44,7 @@ class Polygon:
         Parallelized version of __convex_aux, it's roughtly the same code but avoiding branches
         """
 
-        result = np.zeros(points.shape[1], dtype=np.bool)
+        result = np.zeros(points.shape[1], dtype=bool)
         outside_bounds = (points[0,:] < self.bounds[0,0]) | (points[0,:] > self.bounds[0,1]) | (points[1,:] < self.bounds[1,0]) | (points[1,:] > self.bounds[1,1])
 
         result_cropped = result[~outside_bounds]
