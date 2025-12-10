@@ -1,5 +1,7 @@
 import os
 import sys
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
 
 from reef_optimization import (
     cro_algorithm,
