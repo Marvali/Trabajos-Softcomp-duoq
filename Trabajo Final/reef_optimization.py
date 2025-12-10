@@ -329,7 +329,7 @@ def cro_algorithm(
             nSexual -= 1
 
         if nSexual >= 2:
-            worstCorals = coralRanking[nCorals - nSexual :, :]
+            sexualCorals = coralRanking[:nSexual, :]
 
             pairOrder = np.random.permutation(nSexual)
             nPairs = int(nSexual / 2)
@@ -345,8 +345,8 @@ def cro_algorithm(
                 idx1 = pairOrder[2 * p]
                 idx2 = pairOrder[2 * p + 1]
 
-                parent1_pos = worstCorals[idx1, 1:3].astype(int)
-                parent2_pos = worstCorals[idx2, 1:3].astype(int)
+                parent1_pos = sexualCorals[idx1, 1:3].astype(int)
+                parent2_pos = sexualCorals[idx2, 1:3].astype(int)
 
                 parent1 = reef[parent1_pos[0] - 1][parent1_pos[1] - 1]
                 parent2 = reef[parent2_pos[0] - 1][parent2_pos[1] - 1]
