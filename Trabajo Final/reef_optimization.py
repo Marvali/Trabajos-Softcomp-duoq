@@ -380,6 +380,12 @@ def cro_algorithm(
         print(f"Mejor potencia: {coralRanking[0, 0]:.2f}")
         print(f"Peor potencia: {coralRanking[-1, 0]:.2f}")
         print(f"Total corales: {len(coralRanking)}")
+        
+        # Mostrar disposición del mejor coral
+        best_pos = coralRanking[0, 1:3].astype(int)
+        best_coral = reef[best_pos[0] - 1][best_pos[1] - 1]
+        print("\n")
+        visualize_reef(best_coral)
 
     print("\n")
     print("╔═══════════════════════════════════════════════════════════╗")
@@ -416,19 +422,23 @@ def cro_algorithm(
     return reef, finalRanking
 
 
-def visualize_reef(reef: List[List[Optional[np.ndarray]]]) -> None:
-    rows = len(reef)
-    cols = len(reef[0])
+def visualize_reef(coral: np.ndarray) -> None:
+    if coral is None or coral.size == 0:
+        print("No hay coral para visualizar")
+        return
+    
+    rows = coral.shape[0]
+    cols = coral.shape[1]
 
     print("═════════════════════════════════════════════════════")
-    print("           Mapa del arrecife de corales")
-    print("           (X = coral ocupado, _ = vacío)")
+    print("     Disposición de molinos en el mejor coral")
+    print("           (X = molino, _ = vacío)")
     print("═════════════════════════════════════════════════════")
     print("\n")
 
     print("      ", end="")
     for j in range(1, cols + 1):
-        print(f" {j}  ", end="")
+        print(f" {j:2d} ", end="")
     print("\n", end="")
 
     print("    ┌", end="")
@@ -439,9 +449,9 @@ def visualize_reef(reef: List[List[Optional[np.ndarray]]]) -> None:
     print("┐")
 
     for i in range(rows):
-        print(f" {i+1}  │", end="")
+        print(f" {i+1:2d} │", end="")
         for j in range(cols):
-            if reef[i][j] is not None and reef[i][j].size > 0:
+            if coral[i][j] == 1:
                 print(" X ", end="")
             else:
                 print(" _ ", end="")
@@ -465,13 +475,10 @@ def visualize_reef(reef: List[List[Optional[np.ndarray]]]) -> None:
     print("┘")
     print("\n")
 
-    occupied = 0
-    for i in range(rows):
-        for j in range(cols):
-            if reef[i][j] is not None and reef[i][j].size > 0:
-                occupied += 1
+    n_turbines = int(np.sum(coral))
+    total_positions = rows * cols
 
-    print(f"Total de corales: {occupied} / {rows*cols} posiciones")
+    print(f"Total de molinos: {n_turbines} / {total_positions} posiciones")
     print("═════════════════════════════════════════════════════")
 
 

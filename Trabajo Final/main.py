@@ -31,10 +31,13 @@ def main() -> None:
 
     reef = create_initial_reef(reef_rows, reef_cols, Kgr, Nturb, init_fill)
 
-    visualize_reef(reef)
-
     print("\n--- Ranking Inicial (Generación Aleatoria) ---")
     initialRanking, reef = evaluate_reef_power(reef, vVec, pwrCurve)
+    
+    if len(initialRanking) > 0:
+        best_pos = initialRanking[0, 1:3].astype(int)
+        best_coral = reef[best_pos[0] - 1][best_pos[1] - 1]
+        visualize_reef(best_coral)
 
     reef, finalRanking = cro_algorithm(
         reef,
@@ -46,9 +49,6 @@ def main() -> None:
         target_power,
         initialRanking,
     )
-
-    print("\n")
-    visualize_reef(reef)
 
 
 if __name__ == "__main__":
