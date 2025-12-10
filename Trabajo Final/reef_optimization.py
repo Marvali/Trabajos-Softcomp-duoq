@@ -11,28 +11,52 @@ from scipy.interpolate import PPoly
 
 from windSymPython.f_powerPlants_f1 import f_powerPlants_f1
 from windSymPython.f_powerPlants_f2 import f_powerPlants_f2
+from numba import njit
 
 
-# Helper to match MATLAB's uniquetol behavior with a tolerance tied to array magnitude
+@njit
 def unique_tol(array: np.ndarray, tol: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    tol = tol * np.max(np.abs(array))
-    array_copy = np.sort(np.copy(array))
-    result = [array_copy[0]]
-    for i in range(len(array_copy) - 1):
-        if np.abs(array_copy[i + 1] - result[-1]) >= tol:
-            result.append(array_copy[i + 1])
-
-    ia = []
-    for elem in result:
-        indice_ia = np.where(np.abs(array - elem) <= tol)[0][0]
-        ia.append(indice_ia)
-
-    ic = []
-    result_copy = np.copy(result)
-    for valor in array:
-        indice_ic = np.where(np.abs(result_copy - valor) <= tol)[0][0]
-        ic.append(indice_ic)
-    return np.array(result), np.array(ia), np.array(ic)
+    # Scale tolerance
+    max_val = np.max(np.abs(array))
+    tol = tol * max_val
+    
+    # Sort a copy
+    array_copy = np.sort(array.copy())
+    
+    # Find unique elements
+    n = len(array_copy)
+    temp_res = np.empty(n, dtype=array.dtype)
+    count = 0
+    
+    if n > 0:
+        temp_res[0] = array_copy[0]
+        count = 1
+        for i in range(1, n):
+            if np.abs(array_copy[i] - temp_res[count-1]) >= tol:
+                temp_res[count] = array_copy[i]
+                count += 1
+                
+    result = temp_res[:count]
+    
+    # Calculate ia
+    ia = np.zeros(count, dtype=np.int64)
+    for i in range(count):
+        elem = result[i]
+        for j in range(len(array)):
+            if np.abs(array[j] - elem) <= tol:
+                ia[i] = j
+                break
+    
+    # Calculate ic
+    ic = np.zeros(len(array), dtype=np.int64)
+    for i in range(len(array)):
+        valor = array[i]
+        for j in range(count):
+            if np.abs(result[j] - valor) <= tol:
+                ic[i] = j
+                break
+                
+    return result, ia, ic
 
 
 def calculate_coral_power(gr: np.ndarray, vVec: np.ndarray, pwrCurveData: PPoly) -> float:
