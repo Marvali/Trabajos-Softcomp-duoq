@@ -44,15 +44,30 @@ gr(15, [3 6 9 12 15]) = 1;   % cuarta fila
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% DEFINIR EL VIENTO PARA LA PRUEBA
+% NOTA IMPORTANTÍSIMA SOBRE EL VIENTO
 %
-% f1 SOLO necesita un vector de viento (2x1), es decir:
-%     [vx ; vy]
+% En este test de f1 usamos un viento artificial muy simple:
+%       [1 ; 0]  → viento hacia la DERECHA
 %
-% Aquí usamos viento hacia la DERECHA:
-%     [1 ; 0]
-% Esto significa que una turbina estará en el wake de otra si está
-% a la DERECHA de ella y dentro del cono de turbulencias.
+% Esto lo hacemos SOLO para comprobar visualmente que f1 detecta
+% wakes cuando las turbinas están alineadas con la dirección del viento.
+%
+% PERO EN EL TRABAJO REAL:
+%   → NO elegimos la velocidad del viento
+%   → NO ponemos valores manuales como [8;0] o [1;0]
+%
+% El viento REAL del proyecto viene en el archivo del profesor:
+%
+%       windSym/dt/WindSym_1.mat
+%
+% Dentro está la variable:
+%       vVec  (2×8760)
+%
+% Cada columna de vVec es el viento REAL de esa hora del año.
+% El evaluador final f_powerPlantsT_fast usa AUTOMÁTICAMENTE
+% todo ese viento real para calcular la potencia anual.
+%
+% Este script solo usa viento simplificado para entender f1.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 vVec_hour = [1; 0];   % viento hacia +X (derecha)
@@ -66,10 +81,12 @@ vVec_hour = [1; 0];   % viento hacia +X (derecha)
 %     número_de_turbinas × número_de_turbinas
 %
 % rUDef(i, j) = distancia proyectada entre turbina i → j si j está en el wake.
-%  - Si rUDef(i,j) = 0  → No hay wake entre esas dos turbinas
-%  - Si rUDef(i,j) > 0  → La turbina j está detrás de la turbina i (wake)
 %
-% Esta matriz NO tiene potencias ni velocidades, sólo geometría de wake.
+% Interpretación:
+%  - rUDef(i,j) = 0     → la turbina j NO está detrás de i (no hay wake)
+%  - rUDef(i,j) > 0     → la turbina j SÍ está en el wake de i
+%
+% OJO: f1 NO calcula potencias. Solo geometría de "quién molesta a quién".
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 rUDef = f_powerPlants_f1(vVec_hour, gr);
@@ -79,9 +96,14 @@ rUDef = f_powerPlants_f1(vVec_hour, gr);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MOSTRAR RESULTADOS
 %
-% La matriz rUDef nos muestra qué turbinas están detrás de otras.
-% Si ves muchos ceros → las turbinas no están alineadas con el viento.
-% Si ves valores positivos → f1 ha detectado wake.
+% La matriz rUDef nos muestra qué turbinas están detrás de otras para ESTE
+% viento concreto. Si ves muchos ceros:
+%
+%    → las turbinas NO están alineadas con la dirección del viento.
+%
+% Si ves valores positivos:
+%
+%    → f1 ha detectado que una turbina está "aguas abajo" de otra.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 disp('Wake matrix rUDef (distancias proyectadas entre turbinas):');
