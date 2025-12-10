@@ -279,7 +279,7 @@ def cro_algorithm(
     Kgr: int,
     maxTurb: int,
     maxIter: int,
-    targetPower: float,
+    maxStagnation: int,
     coralRanking: Optional[np.ndarray] = None,
 ) -> Tuple[List[List[Optional[np.ndarray]]], np.ndarray]:
     print("\n")
@@ -304,10 +304,6 @@ def cro_algorithm(
 
         currentBestPower = coralRanking[0, 0]
 
-        if currentBestPower >= targetPower:
-            print(f"¡Objetivo alcanzado! Potencia máxima: {currentBestPower} MW >= {targetPower} MW")
-            break
-
         if currentBestPower > lastBestPower:
             noImprovementCount = 0
             lastBestPower = currentBestPower
@@ -316,8 +312,8 @@ def cro_algorithm(
             noImprovementCount += 1
             print(f"Sin mejora en {noImprovementCount} generaciones (Mejor actual: {currentBestPower} MW)")
 
-        if noImprovementCount >= 4:
-            print("Parada por estancamiento: No hubo mejora en 4 generaciones consecutivas.")
+        if noImprovementCount >= maxStagnation:
+            print(f"Parada por estancamiento: No hubo mejora en {maxStagnation} generaciones consecutivas.")
             break
 
         nCorals = len(coralRanking)

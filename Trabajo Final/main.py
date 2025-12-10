@@ -29,7 +29,7 @@ def main() -> None:
     init_fill = 0.60
 
     max_iterations = 100
-    target_power = 53.50  # MW (potencia media anual objetivo)
+    max_stagnation = 10 # Iteraciones maximas sin mejora
 
     reef = create_initial_reef(reef_rows, reef_cols, Kgr, Nturb, init_fill)
 
@@ -48,7 +48,7 @@ def main() -> None:
         Kgr,
         Nturb,
         max_iterations,
-        target_power,
+        max_stagnation,
         initialRanking,
     )
 
