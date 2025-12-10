@@ -27,7 +27,7 @@ def main() -> None:
     init_fill = 0.60
 
     max_iterations = 100
-    target_power = 53500000.00
+    target_power = 53.50  # MW (potencia media anual objetivo)
 
     reef = create_initial_reef(reef_rows, reef_cols, Kgr, Nturb, init_fill)
 

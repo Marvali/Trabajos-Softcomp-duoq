@@ -13,6 +13,7 @@ from windSymPython.f_powerPlants_f1 import f_powerPlants_f1
 from windSymPython.f_powerPlants_f2 import f_powerPlants_f2
 from numba import njit
 import pickle
+from joblib import Parallel, delayed
 
 class PersistentCoralCache:
     def __init__(self, filename="coral_cache.pkl"):
@@ -97,18 +98,18 @@ def unique_tol(array: np.ndarray, tol: float) -> Tuple[np.ndarray, np.ndarray, n
     return result, ia, ic
 
 
-def calculate_coral_power(gr: np.ndarray, vVec: np.ndarray, pwrCurveData: PPoly) -> float:
+def _calculate_coral_power_pure(gr: np.ndarray, vVec: np.ndarray, pwrCurveData: PPoly) -> float:
+    """
+    Función pura para calcular la potencia media anual de un coral en MW.
+    Ideal para ejecución en paralelo.
+    
+    Returns:
+        Potencia media anual en MW (promedio sobre 8760 horas)
+    """
     if gr is None or gr.size == 0 or np.sum(gr) == 0:
         return 0.0
 
-    # Generar clave única para el array del coral
-    gr_key = np.ascontiguousarray(gr).tobytes()
-    cached_power = CORAL_CACHE.get(gr_key)
-    
-    if cached_power is not None:
-        return cached_power
-
-    nH = vVec.shape[1]
+    nH = vVec.shape[1]  # 8760 horas
     avVec = np.arctan2(vVec[1, :], vVec[0, :])
     angVec, ia, ic = unique_tol(avVec, 1e-15)
 
@@ -124,7 +125,27 @@ def calculate_coral_power(gr: np.ndarray, vVec: np.ndarray, pwrCurveData: PPoly)
         pwr_t, _, _, _, _, _ = f_powerPlants_f2(vVec[:, l], gr, pwrCurveData, rUDef_T[:, :, l], Nturb)
         pwr_sum += pwr_t
 
-    pwr_sum = float(pwr_sum)
+    # Calcular potencia media (kW promedio) y convertir a MW
+    pwr_mean_kw = pwr_sum / nH
+    pwr_mean_mw = pwr_mean_kw / 1000.0
+    
+    return float(pwr_mean_mw)
+
+
+def calculate_coral_power(gr: np.ndarray, vVec: np.ndarray, pwrCurveData: PPoly) -> float:
+    if gr is None or gr.size == 0 or np.sum(gr) == 0:
+        return 0.0
+
+    # Generar clave única para el array del coral
+    gr_key = np.ascontiguousarray(gr).tobytes()
+    cached_power = CORAL_CACHE.get(gr_key)
+    
+    if cached_power is not None:
+        return cached_power
+
+    # Si no está en cache, calculamos
+    pwr_sum = _calculate_coral_power_pure(gr, vVec, pwrCurveData)
+
     CORAL_CACHE.put(gr_key, pwr_sum)
     return pwr_sum
 
@@ -143,18 +164,45 @@ def evaluate_reef_power(
 
     print("Evaluando potencia de los corales...")
 
-    entries = []
-    if isinstance(existingRanking, np.ndarray):
-        existingRanking = existingRanking.tolist()
-
+    # Identificar qué corales necesitan cálculo y cuáles están en caché
+    corals_to_eval_indices = []
+    corals_to_eval_layouts = []
+    
+    # Estructura provisional para resultados: map (i, j) -> power
+    reef_powers = {}
+    
     for i in range(rows):
         for j in range(cols):
             layout = reef[i][j]
             if layout is not None and layout.size > 0:
-                # El cacheado ahora se maneja internamente en calculate_coral_power con un hashmap O(1)
-                # Se ha eliminado la búsqueda lineal sobre existingRanking por ineficiente.
-                pwr = calculate_coral_power(layout, windSymData, pwrCurveData)
-                entries.append([pwr, i + 1, j + 1])
+                gr_key = np.ascontiguousarray(layout).tobytes()
+                cached_power = CORAL_CACHE.get(gr_key)
+                
+                if cached_power is not None:
+                    reef_powers[(i, j)] = cached_power
+                else:
+                    corals_to_eval_indices.append((i, j))
+                    corals_to_eval_layouts.append(layout)
+
+    # Calcular en paralelo los que faltan
+    if corals_to_eval_layouts:
+        print(f"Calculando {len(corals_to_eval_layouts)} corales en paralelo...")
+        n_jobs = -1  # Usar todos los núcleos disponibles
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(_calculate_coral_power_pure)(layout, windSymData, pwrCurveData)
+            for layout in corals_to_eval_layouts
+        )
+        
+        # Guardar en caché y en estructura provisional
+        for (i, j), layout, pwr in zip(corals_to_eval_indices, corals_to_eval_layouts, results):
+            gr_key = np.ascontiguousarray(layout).tobytes()
+            CORAL_CACHE.put(gr_key, pwr)
+            reef_powers[(i, j)] = pwr
+
+    # Construir la lista final de entries
+    entries = []
+    for (i, j), pwr in reef_powers.items():
+        entries.append([pwr, i + 1, j + 1])
 
     if not entries:
         print("No hay corales con potencia.")
@@ -164,12 +212,12 @@ def evaluate_reef_power(
     idx = np.argsort(entries[:, 0])[::-1]
     coralRanking = entries[idx]
 
-    print("Ranking de corales por potencia (Raw):")
+    print("Ranking de corales por potencia media anual:")
     for k in range(len(coralRanking)):
         print(
-            f"{k+1:2d}) Potencia: {coralRanking[k,0]:10.2f}      ->  Coral ({int(coralRanking[k,1])}, {int(coralRanking[k,2])})"
+            f"{k+1:2d}) Potencia: {coralRanking[k,0]} MW      ->  Coral ({int(coralRanking[k,1])}, {int(coralRanking[k,2])})"
         )
-    print("═════════════════════════════════════════════════════")
+    print("═════════════════════════════════════════════════════════")
 
     CORAL_CACHE.save()
     return coralRanking, reef
@@ -257,16 +305,16 @@ def cro_algorithm(
         currentBestPower = coralRanking[0, 0]
 
         if currentBestPower >= targetPower:
-            print(f"¡Objetivo alcanzado! Potencia máxima: {currentBestPower:.2f} >= {targetPower:.2f}")
+            print(f"¡Objetivo alcanzado! Potencia máxima: {currentBestPower} MW >= {targetPower} MW")
             break
 
         if currentBestPower > lastBestPower:
             noImprovementCount = 0
             lastBestPower = currentBestPower
-            print(f"¡Mejora detectada! Nueva mejor potencia: {currentBestPower:.2f}")
+            print(f"¡Mejora detectada! Nueva mejor potencia: {currentBestPower} MW")
         else:
             noImprovementCount += 1
-            print(f"Sin mejora en {noImprovementCount} generaciones (Mejor actual: {currentBestPower:.2f})")
+            print(f"Sin mejora en {noImprovementCount} generaciones (Mejor actual: {currentBestPower} MW)")
 
         if noImprovementCount >= 4:
             print("Parada por estancamiento: No hubo mejora en 4 generaciones consecutivas.")
@@ -289,6 +337,10 @@ def cro_algorithm(
             newChildren = []
             newChildrenPower = []
 
+            print(f"Generando {nPairs} parejas para reproducción sexual...")
+
+            # 1. Generación por lotes (Batch Generation)
+            parents_pairs = []
             for p in range(nPairs):
                 idx1 = pairOrder[2 * p]
                 idx2 = pairOrder[2 * p + 1]
@@ -298,14 +350,43 @@ def cro_algorithm(
 
                 parent1 = reef[parent1_pos[0] - 1][parent1_pos[1] - 1]
                 parent2 = reef[parent2_pos[0] - 1][parent2_pos[1] - 1]
+                
+                parents_pairs.append((parent1, parent2))
 
-                child = sexual_reproduction(parent1, parent2, Kgr, maxTurb)
-                newChildren.append(child)
+            # No paralelizamos la generación (es rápida), paralelizamos la evaluación
+            newChildren = [
+                sexual_reproduction(p1, p2, Kgr, maxTurb) for p1, p2 in parents_pairs
+            ]
+            
+            # 2. Evaluación en paralelo (Batch Evaluation)
+            # Primero verificar caché para evitar re-calcular lo que ya tenemos
+            children_to_calc_indices = []
+            children_to_calc_layouts = []
+            newChildrenPower = [0.0] * nPairs
+            
+            for idx, child in enumerate(newChildren):
+                gr_key = np.ascontiguousarray(child).tobytes()
+                cached = CORAL_CACHE.get(gr_key)
+                if cached is not None:
+                    newChildrenPower[idx] = cached
+                else:
+                    children_to_calc_indices.append(idx)
+                    children_to_calc_layouts.append(child)
+            
+            if children_to_calc_layouts:
+               results = Parallel(n_jobs=-1)(
+                   delayed(_calculate_coral_power_pure)(child, vVec, pwrCurve)
+                   for child in children_to_calc_layouts
+               )
+               # Actualizar caché y lista de potencias
+               for idx, child, val in zip(children_to_calc_indices, children_to_calc_layouts, results):
+                   gr_key = np.ascontiguousarray(child).tobytes()
+                   CORAL_CACHE.put(gr_key, val)
+                   newChildrenPower[idx] = val
 
-                newChildrenPower.append(calculate_coral_power(child, vVec, pwrCurve))
+            print(f"Evaluados {nPairs} hijos (sexual)")
 
-            print(f"Generados {nPairs} hijos por reproducción sexual")
-
+            # 3. Inserción Secuencial (Batch Update)
             for p in range(nPairs):
                 emptyPos = find_empty_positions(reef)
 
@@ -340,17 +421,41 @@ def cro_algorithm(
         newMutants = []
         newMutantsPower = []
 
+        # 1. Generación por lotes (Batch Generation)
+        newMutants = []
         for m in range(nAsexual):
             parent_pos = bestCorals[m, 1:3].astype(int)
             parent = reef[parent_pos[0] - 1][parent_pos[1] - 1]
-
             mutant = asexual_reproduction(parent, Kgr, maxTurb)
             newMutants.append(mutant)
 
-            newMutantsPower.append(calculate_coral_power(mutant, vVec, pwrCurve))
+        # 2. Evaluación en paralelo (Batch Evaluation)
+        newMutantsPower = [0.0] * nAsexual
+        mutants_to_calc_indices = []
+        mutants_to_calc_layouts = []
 
-        print(f"Generados {nAsexual} hijos por reproducción asexual")
+        for idx, mutant in enumerate(newMutants):
+            gr_key = np.ascontiguousarray(mutant).tobytes()
+            cached = CORAL_CACHE.get(gr_key)
+            if cached is not None:
+                newMutantsPower[idx] = cached
+            else:
+                mutants_to_calc_indices.append(idx)
+                mutants_to_calc_layouts.append(mutant)
 
+        if mutants_to_calc_layouts:
+            results = Parallel(n_jobs=-1)(
+                delayed(_calculate_coral_power_pure)(mutant, vVec, pwrCurve)
+                for mutant in mutants_to_calc_layouts
+            )
+            for idx, mutant, val in zip(mutants_to_calc_indices, mutants_to_calc_layouts, results):
+                gr_key = np.ascontiguousarray(mutant).tobytes()
+                CORAL_CACHE.put(gr_key, val)
+                newMutantsPower[idx] = val
+
+        print(f"Evaluados {nAsexual} hijos (asexual)")
+
+        # 3. Inserción Secuencial (Batch Update)
         for m in range(nAsexual):
             emptyPos = find_empty_positions(reef)
 
@@ -377,8 +482,8 @@ def cro_algorithm(
         bestPowerHistory.append(coralRanking[0, 0])
 
         print(f"\n--- Estado tras iteración {iter_num} ---")
-        print(f"Mejor potencia: {coralRanking[0, 0]:.2f}")
-        print(f"Peor potencia: {coralRanking[-1, 0]:.2f}")
+        print(f"Mejor potencia: {coralRanking[0, 0]} MW")
+        print(f"Peor potencia: {coralRanking[-1, 0]} MW")
         print(f"Total corales: {len(coralRanking)}")
         
         # Mostrar disposición del mejor coral
@@ -394,11 +499,11 @@ def cro_algorithm(
 
     finalRanking = coralRanking
 
-    print("Ranking final de corales por potencia (Raw):")
+    print("Ranking final de corales por potencia media anual:")
     limit = min(20, len(finalRanking))
     for k in range(limit):
         print(
-            f"{k+1:2d}) Potencia: {finalRanking[k,0]:10.2f}      ->  Coral ({int(finalRanking[k,1])}, {int(finalRanking[k,2])})"
+            f"{k+1:2d}) Potencia: {finalRanking[k,0]} MW      ->  Coral ({int(finalRanking[k,1])}, {int(finalRanking[k,2])})"
         )
 
     if len(finalRanking) > 20:
@@ -406,14 +511,14 @@ def cro_algorithm(
 
     print("═════════════════════════════════════════════════════════════")
     print(
-        f"Mejor solución encontrada: {finalRanking[0,0]:.2f} en posición ({int(finalRanking[0,1])}, {int(finalRanking[0,2])})"
+        f"Mejor solución encontrada: {finalRanking[0,0]} MW en posición ({int(finalRanking[0,1])}, {int(finalRanking[0,2])})"
     )
 
     plt.figure()
     plt.plot(range(len(bestPowerHistory)), bestPowerHistory, "b-o", linewidth=2)
-    plt.title("Progresión de la Mejor Potencia (Algoritmo CRO)")
+    plt.title("Progresión de la Mejor Potencia Media Anual (Algoritmo CRO)")
     plt.xlabel("Iteración")
-    plt.ylabel("Potencia (Raw)")
+    plt.ylabel("Potencia Media (MW)")
     plt.grid(True)
     print("Gráfico de progresión generado.")
     plt.show()
