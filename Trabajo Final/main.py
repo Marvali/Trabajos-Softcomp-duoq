@@ -21,14 +21,14 @@ def main() -> None:
         print("Error: Could not find data files in windSymPython/dt/")
         sys.exit(1)
 
-    Kgr = 20
-    Nturb = 20
+    Kgr = 50
+    Nturb = 50
 
     reef_rows = 8
     reef_cols = 8
     init_fill = 0.60
 
-    max_iterations = 100
+    max_iterations = 150
     max_stagnation = 10 # Iteraciones maximas sin mejora
 
     reef = create_initial_reef(reef_rows, reef_cols, Kgr, Nturb, init_fill)
