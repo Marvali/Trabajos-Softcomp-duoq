@@ -21,8 +21,8 @@ def main() -> None:
         print("Error: Could not find data files in windSymPython/dt/")
         sys.exit(1)
 
-    Kgr = 50
-    Nturb = 50
+    Kgr = 20
+    Nturb = 20
 
     reef_rows = 8
     reef_cols = 8

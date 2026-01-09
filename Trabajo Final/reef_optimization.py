@@ -503,12 +503,18 @@ def cro_algorithm(
         )
 
     if len(finalRanking) > 20:
-        print(f"... y {len(finalRanking) - 20} corales más")
+        print(f"... y {len(finalRanking) - 20} corales mas")
 
-    print("═════════════════════════════════════════════════════════════")
+    print("----------------------------------------------------------------")
     print(
-        f"Mejor solución encontrada: {finalRanking[0,0]} MW en posición ({int(finalRanking[0,1])}, {int(finalRanking[0,2])})"
+        f"Mejor solucion encontrada: {finalRanking[0,0]} MW en posicion ({int(finalRanking[0,1])}, {int(finalRanking[0,2])})"
     )
+
+    if len(finalRanking) > 0:
+        best_pos = finalRanking[0, 1:3].astype(int)
+        best_coral = reef[best_pos[0] - 1][best_pos[1] - 1]
+        print("\nDisposicion final ganadora:")
+        visualize_reef(best_coral)
 
     plt.figure()
     plt.plot(range(len(bestPowerHistory)), bestPowerHistory, "b-o", linewidth=2)
@@ -530,6 +536,21 @@ def visualize_reef(coral: np.ndarray) -> None:
     
     rows = coral.shape[0]
     cols = coral.shape[1]
+
+    if max(rows, cols) > 30:
+        print("----------------------------------------------------------------")
+        print("Disposicion de molinos (modo compacto)")
+        print("(X = molino, _ = vacio)")
+        print("----------------------------------------------------------------")
+        for i in range(rows):
+            row_str = "".join("X" if coral[i][j] == 1 else "_" for j in range(cols))
+            print(f"{i+1:2d} {row_str}")
+        print("")
+        n_turbines = int(np.sum(coral))
+        total_positions = rows * cols
+        print(f"Total de molinos: {n_turbines} / {total_positions} posiciones")
+        print("----------------------------------------------------------------")
+        return
 
     print("═════════════════════════════════════════════════════")
     print("     Disposición de molinos en el mejor coral")
