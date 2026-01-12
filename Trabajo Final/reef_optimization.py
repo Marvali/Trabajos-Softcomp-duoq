@@ -52,6 +52,15 @@ class PersistentCoralCache:
 
 CORAL_CACHE = PersistentCoralCache()
 
+HOURS_PER_YEAR = 8760.0
+
+def mw_to_annual_kwh(pwr_mw: float) -> float:
+    return pwr_mw * 1000.0 * HOURS_PER_YEAR
+
+def format_energy_kwh(pwr_mw: float) -> str:
+    annual_kwh = mw_to_annual_kwh(pwr_mw)
+    return f"{annual_kwh:.3e} kWh/yr"
+
 
 @njit
 def unique_tol(array: np.ndarray, tol: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -212,10 +221,10 @@ def evaluate_reef_power(
     idx = np.argsort(entries[:, 0])[::-1]
     coralRanking = entries[idx]
 
-    print("Ranking de corales por potencia media anual:")
+    print("Ranking de corales por energia anual:")
     for k in range(len(coralRanking)):
         print(
-            f"{k+1:2d}) Potencia: {coralRanking[k,0]} MW      ->  Coral ({int(coralRanking[k,1])}, {int(coralRanking[k,2])})"
+            f"{k+1:2d}) {format_energy_kwh(coralRanking[k,0])} -> Coral ({int(coralRanking[k,1])}, {int(coralRanking[k,2])})"
         )
     print("═════════════════════════════════════════════════════════")
 
@@ -297,7 +306,7 @@ def cro_algorithm(
 
     if len(coralRanking) > 0:
         lastBestPower = coralRanking[0, 0]
-        bestPowerHistory.append(lastBestPower)
+        bestPowerHistory.append(mw_to_annual_kwh(lastBestPower))
 
     for iter_num in range(1, maxIter + 1):
         print(f"\n══════════════ ITERACIÓN {iter_num}/{maxIter} ══════════════\n")
@@ -307,11 +316,13 @@ def cro_algorithm(
         if currentBestPower > lastBestPower:
             noImprovementCount = 0
             lastBestPower = currentBestPower
-            print(f"¡Mejora detectada! Nueva mejor potencia: {currentBestPower} MW")
+            print(f"Mejora detectada! Nueva mejor energia anual: {format_energy_kwh(currentBestPower)}")
         else:
             noImprovementCount += 1
-            print(f"Sin mejora en {noImprovementCount} generaciones (Mejor actual: {currentBestPower} MW)")
-
+            print(
+                "Sin mejora en "
+                f"{noImprovementCount} generaciones (Mejor actual: {format_energy_kwh(currentBestPower)})"
+            )
         if noImprovementCount >= maxStagnation:
             print(f"Parada por estancamiento: No hubo mejora en {maxStagnation} generaciones consecutivas.")
             break
@@ -475,11 +486,11 @@ def cro_algorithm(
         idx = np.argsort(coralRanking[:, 0])[::-1]
         coralRanking = coralRanking[idx]
 
-        bestPowerHistory.append(coralRanking[0, 0])
+        bestPowerHistory.append(mw_to_annual_kwh(coralRanking[0, 0]))
 
         print(f"\n--- Estado tras iteración {iter_num} ---")
-        print(f"Mejor potencia: {coralRanking[0, 0]} MW")
-        print(f"Peor potencia: {coralRanking[-1, 0]} MW")
+        print(f"Mejor energia anual: {format_energy_kwh(coralRanking[0, 0])}")
+        print(f"Peor energia anual: {format_energy_kwh(coralRanking[-1, 0])}")
         print(f"Total corales: {len(coralRanking)}")
         
         # Mostrar disposición del mejor coral
@@ -495,11 +506,11 @@ def cro_algorithm(
 
     finalRanking = coralRanking
 
-    print("Ranking final de corales por potencia media anual:")
+    print("Ranking final de corales por energia anual:")
     limit = min(20, len(finalRanking))
     for k in range(limit):
         print(
-            f"{k+1:2d}) Potencia: {finalRanking[k,0]} MW      ->  Coral ({int(finalRanking[k,1])}, {int(finalRanking[k,2])})"
+            f"{k+1:2d}) {format_energy_kwh(finalRanking[k,0])} -> Coral ({int(finalRanking[k,1])}, {int(finalRanking[k,2])})"
         )
 
     if len(finalRanking) > 20:
@@ -507,7 +518,9 @@ def cro_algorithm(
 
     print("----------------------------------------------------------------")
     print(
-        f"Mejor solucion encontrada: {finalRanking[0,0]} MW en posicion ({int(finalRanking[0,1])}, {int(finalRanking[0,2])})"
+        "Mejor solucion encontrada: "
+        f"{format_energy_kwh(finalRanking[0,0])} "
+        f"en posicion ({int(finalRanking[0,1])}, {int(finalRanking[0,2])})"
     )
 
     if len(finalRanking) > 0:
@@ -518,9 +531,9 @@ def cro_algorithm(
 
     plt.figure()
     plt.plot(range(len(bestPowerHistory)), bestPowerHistory, "b-o", linewidth=2)
-    plt.title("Progresión de la Mejor Potencia Media Anual (Algoritmo CRO)")
+    plt.title("Progresion de la Mejor Energia Anual (Algoritmo CRO)")
     plt.xlabel("Iteración")
-    plt.ylabel("Potencia Media (MW)")
+    plt.ylabel("Energia anual (kWh/yr)")
     plt.grid(True)
     print("Gráfico de progresión generado.")
     plt.show()
