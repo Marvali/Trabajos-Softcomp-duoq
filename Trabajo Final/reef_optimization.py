@@ -486,6 +486,24 @@ def cro_algorithm(
         idx = np.argsort(coralRanking[:, 0])[::-1]
         coralRanking = coralRanking[idx]
 
+        # --- Fase de depredación (diversidad) ---
+        # Se elimina probabilísticamente el 10% peor de corales para evitar
+        # convergencia prematura y abrir espacio para nuevas soluciones.
+        Pd = 0.08  # Probabilidad de depredación (pequeña, entre 0.05 y 0.1)
+        nCorals = len(coralRanking)
+        if nCorals > 1:
+            nWorst = max(1, int(np.ceil(nCorals * 0.10)))
+            start_idx = nCorals - nWorst
+            remove_indices = []
+            for idx, entry in enumerate(coralRanking[start_idx:], start=start_idx):
+                if np.random.rand() < Pd:
+                    r = int(entry[1])
+                    c = int(entry[2])
+                    reef[r - 1][c - 1] = None
+                    remove_indices.append(idx)
+            if remove_indices:
+                coralRanking = np.delete(coralRanking, remove_indices, axis=0)
+
         bestPowerHistory.append(mw_to_annual_kwh(coralRanking[0, 0]))
 
         print(f"\n--- Estado tras iteración {iter_num} ---")
