@@ -59,7 +59,7 @@ def mw_to_annual_kwh(pwr_mw: float) -> float:
 
 def format_energy_kwh(pwr_mw: float) -> str:
     annual_kwh = mw_to_annual_kwh(pwr_mw)
-    return f"{annual_kwh:.3e} kWh/yr"
+    return f"{annual_kwh:.4e} W"
 
 
 @njit
@@ -109,11 +109,11 @@ def unique_tol(array: np.ndarray, tol: float) -> Tuple[np.ndarray, np.ndarray, n
 
 def _calculate_coral_power_pure(gr: np.ndarray, vVec: np.ndarray, pwrCurveData: PPoly) -> float:
     """
-    Función pura para calcular la potencia media anual de un coral en MW.
+    Función pura para calcular la potencia media anual de un coral en W.
     Ideal para ejecución en paralelo.
     
     Returns:
-        Potencia media anual en MW (promedio sobre 8760 horas)
+        Potencia media anual en W (promedio sobre 8760 horas)
     """
     if gr is None or gr.size == 0 or np.sum(gr) == 0:
         return 0.0
@@ -134,7 +134,7 @@ def _calculate_coral_power_pure(gr: np.ndarray, vVec: np.ndarray, pwrCurveData: 
         pwr_t, _, _, _, _, _ = f_powerPlants_f2(vVec[:, l], gr, pwrCurveData, rUDef_T[:, :, l], Nturb)
         pwr_sum += pwr_t
 
-    # Calcular potencia media (kW promedio) y convertir a MW
+    # Calcular potencia media (W promedio)
     pwr_mean_kw = pwr_sum / nH
     pwr_mean_mw = pwr_mean_kw / 1000.0
     
@@ -533,7 +533,7 @@ def cro_algorithm(
     plt.plot(range(len(bestPowerHistory)), bestPowerHistory, "b-o", linewidth=2)
     plt.title("Progresion de la Mejor Energia Anual (Algoritmo CRO)")
     plt.xlabel("Iteración")
-    plt.ylabel("Energia anual (kWh/yr)")
+    plt.ylabel("Energia anual (W)")
     plt.grid(True)
     print("Gráfico de progresión generado.")
     plt.show()
